@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clima App</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #74b9ff, #0984e3); min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: rgba(255,255,255,0.95); border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+        h1 { color: #2d3436; margin-bottom: 16px; text-align: center; }
+        .search { display: flex; gap: 12px; margin-bottom: 24px; }
+        input { flex: 1; padding: 14px; border: 2px solid #dfe6e9; border-radius: 10px; font-size: 16px; }
+        .btn { background: #0984e3; color: white; border: none; padding: 14px 28px; border-radius: 10px; cursor: pointer; font-size: 16px; transition: 0.3s; }
+        .btn:hover { background: #0770c4; }
+        .current-weather { text-align: center; padding: 20px; }
+        .temp { font-size: 64px; font-weight: bold; color: #0984e3; margin: 10px 0; }
+        .desc { font-size: 24px; color: #636e72; margin-bottom: 20px; }
+        .details { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px; margin-top: 30px; }
+        .detail-item { text-align: center; }
+        .detail-value { font-size: 24px; font-weight: bold; color: #2d3436; }
+        .detail-label { color: #636e72; margin-top: 8px; }
+        .forecast { display: flex; justify-content: space-between; overflow-x: auto; gap: 15px; padding: 20px 0; }
+        .forecast-item { min-width: 120px; text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px; }
+        .forecast-time { font-weight: bold; color: #2d3436; }
+        .forecast-temp { font-size: 20px; color: #0984e3; margin: 8px 0; }
+        .loading { text-align: center; padding: 40px; color: #636e72; }
+        .weather-icon { font-size: 48px; margin: 10px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>⛅ App del Clima</h1>
+            <div class="search">
+                <input type="text" id="locationInput" placeholder="Ingresa una ciudad (ej: Madrid)" value="Madrid">
+                <button id="searchBtn" class="btn">Buscar</button>
+                <button id="locationBtn" class="btn">📍</button>
+            </div>
+
+            <div id="weatherInfo">
+                <div id="loading" class="loading">Cargando datos del clima...</div>
+                
+                <div id="currentWeather" class="hidden">
+                    <div class="current-weather">
+                        <div class="weather-icon" id="weatherIcon">☀️</div>
+                        <div class="temp" id="temperature">--°C</div>
+                        <div class="desc" id="description">--</div>
+                        <div class="details">
+                            <div class="detail-item">
+                                <div class="detail-value" id="windSpeed">-- km/h</div>
+                                <div class="detail-label">Viento</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value" id="humidity">--%</div>
+                                <div class="detail-label">Humedad</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value" id="rainChance">--%</div>
+                                <div class="detail-label">Prob. Lluvia</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px;">Pronóstico 24h</h3>
+                    <div id="forecast" class="forecast"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = 'YOUR_API_KEY'; // Usa API key de Visual Crossing
+        const locationInput = document.getElementById('locationInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const locationBtn = document.getElementById('locationBtn');
+        const loading = document.getElementById('loading');
+        const currentWeather = document.getElementById('currentWeather');
+
+        searchBtn.onclick = () => fetchWeather(locationInput.value);
+        locationBtn.onclick = getCurrentLocation;
+        locationInput.onkeypress = (e) => e.key === 'Enter' && fetchWeather(locationInput.value);
+
+        // Usa ubicación actual (por defecto)
+        window.onload = getCurrentLocation;
+
+        async function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    fetchWeather(`${position.coords.latitude},${position.coords.longitude}`);
+                }, () => {
+                    fetchWeather('Madrid');
+                });
+            } else {
+                fetchWeather('Madrid');
+            }
+        }
+
+        async function fetchWeather(location) {
+            loading.classList.remove('hidden');
+            currentWeather.classList.add('hidden');
+            
+            try {
+                const response = await fetch(
+                    `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${encodeURIComponent(location)}?unitGroup=metric&key=${API_KEY}&contentType=json`
+                );
+                const data = await response.json();
+                displayWeather(data);
+            } catch (error) {
+                alert('Error al obtener datos del clima. Verifica el nombre de la ciudad.');
+                loading.classList.add('hidden');
+            }
+        }
+
+        function displayWeather(data) {
+            loading.classList.add('hidden');
+            currentWeather.classList.remove('hidden');
+
+            const current = data.currentConditions;
+            const days = data.days[0];
+
+            // Icono según condiciones
+            const icon = document.getElementById('weatherIcon');
+            const conditions = current.conditions.toLowerCase();
+            if (conditions.includes('rain')) icon.textContent = '🌧️';
+            else if (conditions.includes('cloud')) icon.textContent = '☁️';
+            else if (conditions.includes('snow')) icon.textContent = '❄️';
+            else icon.textContent = '☀️';
+
+            document.getElementById('temperature').textContent = `${Math.round(current.temp)}°C`;
+            document.getElementById('description').textContent = current.conditions;
+            document.getElementById('windSpeed').textContent = `${Math.round(current.windspeed)} km/h`;
+            document.getElementById('humidity').textContent = `${Math.round(current.humidity)}%`;
+            document.getElementById('rainChance').textContent = `${Math.round(current.precipprob)}%`;
+
+            // Pronóstico 24h
+            const forecastEl = document.getElementById('forecast');
+            forecastEl.innerHTML = '';
+            
+            // Tomar 8 períodos (24 horas)
+            const hours = data.days[0].hours.concat(data.days[1]?.hours.slice(0, 8) || []);
+            
+            hours.slice(0, 8).forEach(hour => {
+                const time = new Date(hour.datetime).getHours();
+                const div = document.createElement('div');
+                div.className = 'forecast-item';
+                div.innerHTML = `
+                    <div class="forecast-time">${time}:00</div>
+                    <div class="forecast-temp">${Math.round(hour.temp)}°C</div>
+                    <div>${hour.conditions.includes('Rain') ? '🌧️' : hour.conditions.includes('Cloud') ? '☁️' : '☀️'}</div>
+                `;
+                forecastEl.appendChild(div);
+            });
+        }
+
+        // Datos de ejemplo si no hay API key
+        if (API_KEY === 'YOUR_API_KEY') {
+            const mockData = {
+                currentConditions: {
+                    temp: 22,
+                    conditions: "Parcialmente Nublado",
+                    windspeed: 15,
+                    humidity: 65,
+                    precipprob: 20
+                },
+                days: [{
+                    hours: [
+                        {datetime: "2024-01-01T00:00:00", temp: 18, conditions: "Despejado"},
+                        {datetime: "2024-01-01T03:00:00", temp: 17, conditions: "Despejado"},
+                        {datetime: "2024-01-01T06:00:00", temp: 16, conditions: "Despejado"},
+                        {datetime: "2024-01-01T09:00:00", temp: 20, conditions: "Parcialmente Nublado"},
+                        {datetime: "2024-01-01T12:00:00", temp: 24, conditions: "Soleado"},
+                        {datetime: "2024-01-01T15:00:00", temp: 25, conditions: "Soleado"},
+                        {datetime: "2024-01-01T18:00:00", temp: 21, conditions: "Nublado"},
+                        {datetime: "2024-01-01T21:00:00", temp: 19, conditions: "Despejado"}
+                    ]
+                }]
+            };
+            
+            // Mostrar datos de ejemplo
+            setTimeout(() => displayWeather(mockData), 500);
+        }
+    </script>
+</body>
+</html>
